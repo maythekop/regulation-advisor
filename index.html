@@ -165,6 +165,8 @@ nav.tabs button[aria-current="page"]{color:var(--navy);box-shadow:inset 0 3px 0 
   .msg{max-width:100%}
 }
 /* ===== ส่วนที่เพิ่มสำหรับระบบจริง ===== */
+.vpanel{margin-top:10px;background:var(--panel-2);border-radius:8px;padding:10px;display:grid;gap:6px}
+.vrow{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:6px}
 .login{display:grid;gap:6px;max-width:420px}
 .login label{font-weight:600;font-size:14.5px;margin-top:6px}
 .login input{width:100%;border-radius:8px;border:1.5px solid var(--line);background:var(--panel);padding:10px 12px;min-height:44px}
@@ -239,7 +241,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
  * ║  (ถ้าเปิดผ่านเว็บแอป Apps Script โดยตรง ค่านี้ไม่ถูกใช้)                   ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  */
-var API_URL = 'https://script.google.com/macros/s/AKfycbzV1iysQZSRuxHc_mqaIT5FlOB40q1yIsc4v-mw1TmITu0s7BVwk9VCpFwv4IzMie60/exec';
+var API_URL = 'PASTE_WEB_APP_EXEC_URL_HERE';
 /* ═══════════════════════════ จบส่วน CONFIG ═══════════════════════════ */
 
 /* โหมด: เปิดผ่านเว็บแอป Apps Script (มี google.script.run) หรือหน้าเว็บภายนอกที่เรียก doPost */
@@ -302,19 +304,44 @@ function thaiVoice(){
 try{V.voiceName=localStorage.getItem('regadv_voice')||'';}catch(e){V.voiceName='';}
 /* รายการเสียงโหลดช้าและอาจว่างชั่วขณะ — อัปเดตเฉพาะเมื่อได้เสียงไทยจริง ไม่ล้างทิ้ง */
 if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=function(){var v=thaiVoice(); if(v) V.thaiVoice=v; updateVoiceBtn();};
+function vName(v){return v?v.name.replace(/\s*\(.*\)$/,''):'ไม่มี';}
 function updateVoiceBtn(){
   var b=document.getElementById('voiceBtn'); if(!b) return;
-  var vs=thaiVoices(); b.hidden=vs.length<2;
-  var v=V.thaiVoice||thaiVoice(); b.textContent='เสียงอ่าน: '+(v?v.name.replace(/\s*\(.*\)$/,''):'ไม่มี');
+  var v=V.thaiVoice||thaiVoice(); b.textContent='เสียงอ่าน: '+vName(v);
+  var p=document.getElementById('voicePanel'); if(p&&!p.hidden) renderVoicePanel();
 }
-function nextVoice(){
-  var vs=thaiVoices(); if(vs.length<2) return;
-  var cur=V.thaiVoice||thaiVoice(), i=0;
-  for(var k=0;k<vs.length;k++) if(cur&&vs[k].name===cur.name) i=k;
-  V.thaiVoice=vs[(i+1)%vs.length]; V.voiceName=V.thaiVoice.name;
+/* แผงตั้งค่าเสียง: แสดงเสียงไทยทั้งหมดในเครื่อง ให้ฟังตัวอย่างและเลือกใช้ + ข้อมูลตรวจสอบเมื่อเสียงเพี้ยน */
+function renderVoicePanel(){
+  var p=document.getElementById('voicePanel'); if(!p) return;
+  if(!('speechSynthesis' in window)){p.innerHTML='<div class="status">เบราว์เซอร์นี้ไม่รองรับเสียงอ่าน</div>';return;}
+  var all=speechSynthesis.getVoices(), th=thaiVoices(), cur=V.thaiVoice||thaiVoice();
+  var h='<div class="meta">เบราว์เซอร์พบเสียงทั้งหมด '+all.length+' เสียง · เสียงไทย '+th.length+' เสียง · ใช้อยู่: <b>'+esc(vName(cur))+'</b>'+(cur?' ('+esc(cur.lang)+', '+(cur.localService?'ในเครื่อง':'ออนไลน์')+')':'')+'</div>';
+  if(!th.length){
+    h+='<div class="status" style="margin-top:6px">ไม่พบเสียงภาษาไทยในเครื่องนี้ — ระบบจึงพูดไม่ได้ (หรือเบราว์เซอร์ใช้เสียงอังกฤษอ่านแทน)</div>'+
+      '<ul class="wl"><li>Mac: การตั้งค่าระบบ → การช่วยการเข้าถึง → เนื้อหาที่พูด → เสียงระบบ → จัดการเสียง → เพิ่ม "ไทย" (Kanya) แล้วเปิด Chrome ใหม่</li>'+
+      '<li>iPhone: การตั้งค่า → การช่วยการเข้าถึง → เนื้อหาที่พูด → เสียง → ไทย → ดาวน์โหลด Kanya</li>'+
+      '<li>Windows: การตั้งค่า → เวลาและภาษา → คำพูด → เพิ่มเสียง → ไทย</li></ul>';
+  }
+  th.forEach(function(v,i){
+    var on=cur&&cur.name===v.name;
+    h+='<div class="vrow"><span><b>'+esc(vName(v))+'</b> <span class="meta">'+esc(v.lang)+' · '+(v.localService?'ในเครื่อง':'ออนไลน์ (อาจตัดกลางทาง)')+'</span></span>'+
+      '<span class="row"><button type="button" class="btn sm" data-vtest="'+i+'">ฟังตัวอย่าง</button>'+
+      '<button type="button" class="btn sm'+(on?' done':'')+'" data-vuse="'+i+'" aria-pressed="'+on+'">'+(on?'✓ ใช้อยู่':'ใช้เสียงนี้')+'</button></span></div>';
+  });
+  p.innerHTML=h;
+}
+function useVoice(i,test){
+  var v=thaiVoices()[i]; if(!v) return;
+  if(test){var keepV=V.thaiVoice, keepN=V.voiceName; V.thaiVoice=v; V.voiceName=v.name;
+    say('สวัสดีครับ ทดสอบเสียงอ่านภาษาไทย ตามข้อ 182 ต้องแจ้งภายใน 15 วัน',function(){V.thaiVoice=keepV; V.voiceName=keepN; updateVoiceBtn();}); return;}
+  V.thaiVoice=v; V.voiceName=v.name;
   try{localStorage.setItem('regadv_voice',V.voiceName);}catch(e){}
   if(APP.user) savePrefs({voice:V.voiceName});
-  updateVoiceBtn(); say('ทดสอบเสียงอ่านภาษาไทยครับ');
+  updateVoiceBtn(); renderVoicePanel();
+}
+function toggleVoicePanel(){
+  var p=document.getElementById('voicePanel'), b=document.getElementById('voiceBtn');
+  p.hidden=!p.hidden; b.setAttribute('aria-expanded',!p.hidden); if(!p.hidden) renderVoicePanel();
 }
 /* แบ่งข้อความเป็นช่วงสั้นไม่เกิน ~110 ตัวอักษร ตัดที่ช่องว่าง (ภาษาไทยเว้นวรรคน้อย ต้องนับตัวอักษรแทนนับคำ) */
 function splitSpeech(text){
@@ -385,7 +412,14 @@ function confirmSend(text){
   document.getElementById('cfCancel').onclick=function(){done();setState('idle');};
 }
 /* พูดคำตอบ: แบ่งเป็นช่วงสั้น เพราะเบราว์เซอร์บางตัวตัดเสียงเมื่อข้อความยาว */
-function say(text,after){
+function say(text,after,retried){
+  /* รายการเสียงของ Chrome โหลดช้า — ถ้ายังว่าง รอสูงสุด 1.5 วินาทีก่อน ไม่งั้นเบราว์เซอร์จะใช้เสียงเริ่มต้น (อังกฤษ) */
+  if('speechSynthesis' in window&&!speechSynthesis.getVoices().length&&!retried){
+    var myId=V.sayId=(V.sayId||0)+1, fired=false, go2=function(){if(fired||V.sayId!==myId)return;fired=true;say(text,after,true);};
+    setState('idle','กำลังเตรียมเสียงอ่าน…');
+    speechSynthesis.addEventListener&&speechSynthesis.addEventListener('voiceschanged',go2,{once:true});
+    setTimeout(go2,1500); return;
+  }
   V.lastSay=text; V.thaiVoice=thaiVoice()||V.thaiVoice;
   if(!('speechSynthesis' in window)||!V.thaiVoice){setState('idle','เครื่องนี้ไม่มีเสียงอ่านภาษาไทย — อ่านคำตอบบนจอแทน');if(after)after();return;}
   speechSynthesis.cancel(); clearInterval(V.keep);
@@ -405,7 +439,7 @@ function say(text,after){
     speechSynthesis.speak(u);
   })();
 }
-function stopSpeak(){clearInterval(V.keep);if('speechSynthesis' in window)speechSynthesis.cancel(); if(V.state==='speak')setState('idle');}
+function stopSpeak(){V.sayId=(V.sayId||0)+1;clearInterval(V.keep);if('speechSynthesis' in window)speechSynthesis.cancel(); if(V.state==='speak')setState('idle');}
 function stopAll(){stopSpeak(); if(V.rec){V.state='idle';V.rec.abort();} clearTimeout(V.countdown); var c=document.getElementById('confirm'); if(c){c.hidden=true;c.innerHTML='';} setState('idle');}
 function orbTap(){
   if(V.state==='listen'){V.rec&&V.rec.stop();return;}
@@ -545,8 +579,9 @@ S.chat=function(){
     '<div class="confirm" id="confirm" hidden></div>'+
     '<div class="vopts"><button type="button" class="btn sm" id="contBtn" aria-pressed="'+V.cont+'">'+(V.cont?'สนทนาต่อเนื่อง: เปิด':'สนทนาต่อเนื่อง: ปิด')+'</button>'+
     '<button type="button" class="btn sm" id="rateBtn">ความเร็วเสียง: '+rateName()+'</button>'+
-    '<button type="button" class="btn sm" id="voiceBtn" hidden>เสียงอ่าน</button>'+
+    '<button type="button" class="btn sm" id="voiceBtn" aria-expanded="false" aria-controls="voicePanel">เสียงอ่าน</button>'+
     '<button type="button" class="btn sm" id="typeBtn" aria-pressed="false">พิมพ์แทน</button></div>'+
+    '<div id="voicePanel" class="vpanel" hidden></div>'+
     '<div id="typeBox" hidden><label for="ask" class="vhint">พิมพ์คำถาม'+(APP.settings.privacyWarning?' — อย่าใส่ข้อมูลโครงการที่ยังไม่เปิดเผย':'')+'</label><textarea id="ask" autocomplete="off" placeholder="เช่น การตรวจรับงวดสุดท้ายต้องมีเอกสารอะไรบ้าง"></textarea>'+
     '<div class="row" style="margin-top:6px"><button type="button" class="btn primary" id="askBtn"><span>ส่งคำถาม</span></button></div></div>'+
     '<div class="status" id="askStatus" role="status"></div>'+
@@ -562,7 +597,7 @@ function initChat(){
   document.getElementById('typeBtn').onclick=function(){showTyping(!V.typing); if(V.typing) document.getElementById('ask').focus();};
   document.getElementById('contBtn').onclick=function(){V.cont=!V.cont;this.setAttribute('aria-pressed',V.cont);this.textContent=V.cont?'สนทนาต่อเนื่อง: เปิด':'สนทนาต่อเนื่อง: ปิด';};
   document.getElementById('rateBtn').onclick=function(){V.rate=V.rate===1?1.15:(V.rate>1?0.9:1);this.textContent='ความเร็วเสียง: '+rateName();if(APP.user)savePrefs({rate:V.rate});};
-  document.getElementById('voiceBtn').onclick=nextVoice;
+  document.getElementById('voiceBtn').onclick=toggleVoicePanel;
   showTyping(V.typing);
   V.thaiVoice=thaiVoice()||V.thaiVoice; updateVoiceBtn();
   if(!(window.SpeechRecognition||window.webkitSpeechRecognition)){setState('idle','เบราว์เซอร์นี้ยังไม่รองรับการพูด — ใช้ Chrome หรือพิมพ์แทน');showTyping(true);}
@@ -749,6 +784,8 @@ document.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d
 document.addEventListener('click',function(e){
   var t=e.target.closest('button'); if(!t) return;
   try{
+    if(t.dataset.vtest!==undefined){useVoice(+t.dataset.vtest,true);return;}
+    if(t.dataset.vuse!==undefined){useVoice(+t.dataset.vuse,false);return;}
     if(t.dataset.logout){logout();return;}
     if(t.dataset.go){go(t.dataset.go);return;}
     if(t.dataset.mode){ST.mode=t.dataset.mode;document.querySelectorAll('[data-mode]').forEach(function(b){b.setAttribute('aria-pressed',b===t);});renderSuggest();return;}
