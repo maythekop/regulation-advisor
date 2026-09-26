@@ -241,7 +241,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
  * ║  (ถ้าเปิดผ่านเว็บแอป Apps Script โดยตรง ค่านี้ไม่ถูกใช้)                   ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  */
-var API_URL = 'https://script.google.com/macros/s/AKfycbzV1iysQZSRuxHc_mqaIT5FlOB40q1yIsc4v-mw1TmITu0s7BVwk9VCpFwv4IzMie60/exec';
+var API_URL = 'PASTE_WEB_APP_EXEC_URL_HERE';
 /* ═══════════════════════════ จบส่วน CONFIG ═══════════════════════════ */
 
 /* โหมด: เปิดผ่านเว็บแอป Apps Script (มี google.script.run) หรือหน้าเว็บภายนอกที่เรียก doPost */
@@ -470,24 +470,33 @@ function pcmToWav(b64,rate){
 function b64ToBlob(b64,mime){var bin=atob(b64),a=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime});}
 function sayGemini(text,after){
   var myId=V.sayId=(V.sayId||0)+1;
-  V.lastSay=text; setState('speak','กำลังสร้างเสียง Gemini… แตะปุ่มเพื่อยกเลิก');
+  V.lastSay=text;
+  var hit=ttsMemGet(text);
+  if(hit){ playGemini(hit,text,after,myId); return; }      // เคยเล่นแล้ว → เล่นทันที ไม่เรียกเซิร์ฟเวอร์
+  setState('speak','กำลังสร้างเสียง Gemini… แตะปุ่มเพื่อยกเลิก');
   api('apiTts',[text],function(r){
     if(V.sayId!==myId||V.state!=='speak') return;
     var mime=String(r.mime||''), blob;
     if(/wav/i.test(mime)) blob=b64ToBlob(r.b64,'audio/wav');
     else if(/l16|pcm/i.test(mime)){var m=mime.match(/rate=(\d+)/);blob=pcmToWav(r.b64,m?+m[1]:24000);}
     else blob=b64ToBlob(r.b64,mime||'audio/mpeg');
-    var a=audioEl(); if(V.audioUrl) URL.revokeObjectURL(V.audioUrl);
-    V.audioUrl=URL.createObjectURL(blob); a.src=V.audioUrl; a.playbackRate=V.rate||1;
-    a.onended=function(){if(V.sayId!==myId)return;setState('idle');if(after)after();else if(V.cont)setTimeout(listen,400);};
-    a.onerror=function(){if(V.sayId!==myId)return;setState('idle','เล่นเสียง Gemini ไม่ได้ — ใช้เสียงในเครื่องแทน');sayDevice(text,after);};
-    setState('speak','กำลังพูด (เสียง Gemini) — แตะปุ่มเพื่อหยุด');
-    var p=a.play(); if(p&&p.catch)p.catch(function(){ if(V.sayId!==myId)return; setState('idle','เบราว์เซอร์บล็อกการเล่นเสียง — แตะ "ฟังอีกครั้ง"'); });
+    playGemini(ttsMemPut(text,URL.createObjectURL(blob)),text,after,myId);
   },function(err){
     if(V.sayId!==myId) return;
     V.ttsNote=err; sayDevice(text,after);       // โควตาหมด/ผิดพลาด → ใช้เสียงในเครื่องแทนทันที
     setTimeout(function(){ if(V.state==='speak'){var t=document.getElementById('vstate'); if(t) t.textContent+=' · เสียง Gemini ใช้ไม่ได้: '+err;} },50);
   });
+}
+/* แคชเสียงในหน่วยความจำของหน้าเว็บ (ล่าสุด 12 ข้อความ) — หายเมื่อปิดหน้า */
+var TTS_MEM=[];
+function ttsMemGet(text){for(var i=0;i<TTS_MEM.length;i++)if(TTS_MEM[i].t===text){var e=TTS_MEM.splice(i,1)[0];TTS_MEM.push(e);return e.url;}return null;}
+function ttsMemPut(text,url){TTS_MEM.push({t:text,url:url});while(TTS_MEM.length>12){URL.revokeObjectURL(TTS_MEM.shift().url);}return url;}
+function playGemini(url,text,after,myId){
+    var a=audioEl(); a.src=url; a.playbackRate=V.rate||1;
+    a.onended=function(){if(V.sayId!==myId)return;setState('idle');if(after)after();else if(V.cont)setTimeout(listen,400);};
+    a.onerror=function(){if(V.sayId!==myId)return;setState('idle','เล่นเสียง Gemini ไม่ได้ — ใช้เสียงในเครื่องแทน');sayDevice(text,after);};
+    setState('speak','กำลังพูด (เสียง Gemini) — แตะปุ่มเพื่อหยุด');
+    var p=a.play(); if(p&&p.catch)p.catch(function(){ if(V.sayId!==myId)return; setState('idle','เบราว์เซอร์บล็อกการเล่นเสียง — แตะ "ฟังอีกครั้ง"'); });
 }
 function say(text,after){
   if(V.engine==='gemini'&&(GAS_MODE||AUTH.token)) sayGemini(text,after); else sayDevice(text,after);
