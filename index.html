@@ -241,7 +241,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
  * ║  (ถ้าเปิดผ่านเว็บแอป Apps Script โดยตรง ค่านี้ไม่ถูกใช้)                   ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  */
-var API_URL = 'https://script.google.com/macros/s/AKfycbzV1iysQZSRuxHc_mqaIT5FlOB40q1yIsc4v-mw1TmITu0s7BVwk9VCpFwv4IzMie60/exec';
+var API_URL = 'PASTE_WEB_APP_EXEC_URL_HERE';
 /* ═══════════════════════════ จบส่วน CONFIG ═══════════════════════════ */
 
 /* โหมด: เปิดผ่านเว็บแอป Apps Script (มี google.script.run) หรือหน้าเว็บภายนอกที่เรียก doPost */
@@ -301,13 +301,13 @@ function thaiVoice(){
   var local=vs.filter(function(v){return v.localService;});
   return local[0]||vs[0];
 }
-try{V.voiceName=localStorage.getItem('regadv_voice')||'';}catch(e){V.voiceName='';}
+try{(function(v){V.engine=(v==='gemini')?'gemini':'device';V.langOnly=(v==='auto-th');V.voiceName=(v&&v!=='gemini'&&v!=='auto-th')?v:'';})(localStorage.getItem('regadv_voice')||'');}catch(e){V.voiceName='';V.engine='device';}
 /* รายการเสียงโหลดช้าและอาจว่างชั่วขณะ — อัปเดตเฉพาะเมื่อได้เสียงไทยจริง ไม่ล้างทิ้ง */
 if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=function(){var v=thaiVoice(); if(v) V.thaiVoice=v; updateVoiceBtn();};
 function vName(v){return v?v.name.replace(/\s*\(.*\)$/,''):'ไม่มี';}
 function updateVoiceBtn(){
   var b=document.getElementById('voiceBtn'); if(!b) return;
-  var v=V.thaiVoice||thaiVoice(); b.textContent='เสียงอ่าน: '+vName(v);
+  var v=V.thaiVoice||thaiVoice(); b.textContent='เสียงอ่าน: '+(V.engine==='gemini'?'Gemini':(V.langOnly?'ไทยอัตโนมัติ':vName(v)));
   var p=document.getElementById('voicePanel'); if(p&&!p.hidden) renderVoicePanel();
 }
 /* แผงตั้งค่าเสียง: แสดงเสียงไทยทั้งหมดในเครื่อง ให้ฟังตัวอย่างและเลือกใช้ + ข้อมูลตรวจสอบเมื่อเสียงเพี้ยน */
@@ -315,7 +315,15 @@ function renderVoicePanel(){
   var p=document.getElementById('voicePanel'); if(!p) return;
   if(!('speechSynthesis' in window)){p.innerHTML='<div class="status">เบราว์เซอร์นี้ไม่รองรับเสียงอ่าน</div>';return;}
   var all=speechSynthesis.getVoices(), th=thaiVoices(), cur=V.thaiVoice||thaiVoice();
-  var h='<div class="meta">เบราว์เซอร์พบเสียงทั้งหมด '+all.length+' เสียง · เสียงไทย '+th.length+' เสียง · ใช้อยู่: <b>'+esc(vName(cur))+'</b>'+(cur?' ('+esc(cur.lang)+', '+(cur.localService?'ในเครื่อง':'ออนไลน์')+')':'')+'</div>';
+  var eg=V.engine==='gemini';
+  var h='<div class="row" role="group" aria-label="แหล่งเสียงอ่าน">'+
+    '<button type="button" class="btn sm'+(eg?' done':'')+'" data-engine="gemini" aria-pressed="'+eg+'">'+(eg?'✓ ':'')+'เสียง Gemini (สร้างที่เซิร์ฟเวอร์)</button>'+
+    '<button type="button" class="btn sm'+(!eg?' done':'')+'" data-engine="device" aria-pressed="'+(!eg)+'">'+(!eg?'✓ ':'')+'เสียงในเครื่อง</button>'+
+    '<button type="button" class="btn sm" data-engine-test="1">ฟังตัวอย่าง</button></div>'+
+    '<div class="meta">เสียง Gemini: ไทยชัดเหมือนกันทุกเครื่อง แต่รอสร้างเสียง 2–4 วินาที และมีโควตาฟรีรายวัน (หมดแล้วสลับเป็นเสียงในเครื่องเอง)'+(V.ttsNote?' · ล่าสุด: '+esc(V.ttsNote):'')+'</div>';
+  if(eg){p.innerHTML=h;return;}
+  h+='<label class="meta" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="langOnly"'+(V.langOnly?' checked':'')+'> ไม่ระบุชื่อเสียง ให้เบราว์เซอร์เลือกเสียงไทยเอง (ลองใช้ถ้าเลือก Kanya แล้วยังออกเป็นอังกฤษ)</label>';
+  h+='<div class="meta">เบราว์เซอร์พบเสียงทั้งหมด '+all.length+' เสียง · เสียงไทย '+th.length+' เสียง · ใช้อยู่: <b>'+esc(vName(cur))+'</b>'+(cur?' ('+esc(cur.lang)+', '+(cur.localService?'ในเครื่อง':'ออนไลน์')+')':'')+'</div>';
   if(!th.length){
     h+='<div class="status" style="margin-top:6px">ไม่พบเสียงภาษาไทยในเครื่องนี้ — ระบบจึงพูดไม่ได้ (หรือเบราว์เซอร์ใช้เสียงอังกฤษอ่านแทน)</div>'+
       '<ul class="wl"><li>Mac: การตั้งค่าระบบ → การช่วยการเข้าถึง → เนื้อหาที่พูด → เสียงระบบ → จัดการเสียง → เพิ่ม "ไทย" (Kanya) แล้วเปิด Chrome ใหม่</li>'+
@@ -329,15 +337,21 @@ function renderVoicePanel(){
       '<button type="button" class="btn sm'+(on?' done':'')+'" data-vuse="'+i+'" aria-pressed="'+on+'">'+(on?'✓ ใช้อยู่':'ใช้เสียงนี้')+'</button></span></div>';
   });
   p.innerHTML=h;
+  var lo=document.getElementById('langOnly'); if(lo) lo.onchange=function(){V.langOnly=this.checked; storeVoicePref(); updateVoiceBtn();};
+}
+function voicePrefValue(){return V.engine==='gemini'?'gemini':(V.langOnly?'auto-th':(V.voiceName||''));}
+function storeVoicePref(){var v=voicePrefValue(); try{localStorage.setItem('regadv_voice',v);}catch(e){} if(APP.user) savePrefs({voice:v});}
+function applyVoicePref(v){
+  V.engine=(v==='gemini')?'gemini':'device'; V.langOnly=(v==='auto-th');
+  if(V.engine==='device'&&!V.langOnly&&v){V.voiceName=v; var x=thaiVoice(); if(x) V.thaiVoice=x;}
+  updateVoiceBtn();
 }
 function useVoice(i,test){
   var v=thaiVoices()[i]; if(!v) return;
   if(test){var keepV=V.thaiVoice, keepN=V.voiceName; V.thaiVoice=v; V.voiceName=v.name;
-    say('สวัสดีครับ ทดสอบเสียงอ่านภาษาไทย ตามข้อ 182 ต้องแจ้งภายใน 15 วัน',function(){V.thaiVoice=keepV; V.voiceName=keepN; updateVoiceBtn();}); return;}
-  V.thaiVoice=v; V.voiceName=v.name;
-  try{localStorage.setItem('regadv_voice',V.voiceName);}catch(e){}
-  if(APP.user) savePrefs({voice:V.voiceName});
-  updateVoiceBtn(); renderVoicePanel();
+    sayDevice('สวัสดีครับ ทดสอบเสียงอ่านภาษาไทย ตามข้อ 182 ต้องแจ้งภายใน 15 วัน',function(){V.thaiVoice=keepV; V.voiceName=keepN; updateVoiceBtn();}); return;}
+  V.thaiVoice=v; V.voiceName=v.name; V.engine='device'; V.langOnly=false;
+  storeVoicePref(); updateVoiceBtn(); renderVoicePanel();
 }
 function toggleVoicePanel(){
   var p=document.getElementById('voicePanel'), b=document.getElementById('voiceBtn');
@@ -412,10 +426,10 @@ function confirmSend(text){
   document.getElementById('cfCancel').onclick=function(){done();setState('idle');};
 }
 /* พูดคำตอบ: แบ่งเป็นช่วงสั้น เพราะเบราว์เซอร์บางตัวตัดเสียงเมื่อข้อความยาว */
-function say(text,after,retried){
+function sayDevice(text,after,retried){
   /* รายการเสียงของ Chrome โหลดช้า — ถ้ายังว่าง รอสูงสุด 1.5 วินาทีก่อน ไม่งั้นเบราว์เซอร์จะใช้เสียงเริ่มต้น (อังกฤษ) */
   if('speechSynthesis' in window&&!speechSynthesis.getVoices().length&&!retried){
-    var myId=V.sayId=(V.sayId||0)+1, fired=false, go2=function(){if(fired||V.sayId!==myId)return;fired=true;say(text,after,true);};
+    var myId=V.sayId=(V.sayId||0)+1, fired=false, go2=function(){if(fired||V.sayId!==myId)return;fired=true;sayDevice(text,after,true);};
     setState('idle','กำลังเตรียมเสียงอ่าน…');
     speechSynthesis.addEventListener&&speechSynthesis.addEventListener('voiceschanged',go2,{once:true});
     setTimeout(go2,1500); return;
@@ -425,21 +439,60 @@ function say(text,after,retried){
   speechSynthesis.cancel(); clearInterval(V.keep);
   var parts=splitSpeech(text), i=0;
   V.utts=[];                                   // เก็บอ้างอิงไว้ กัน Chrome เก็บกวาดทิ้งจน onend ไม่ทำงาน
-  setState('speak','กำลังพูด (เสียง '+V.thaiVoice.name.replace(/\s*\(.*\)$/,'')+') — แตะปุ่มเพื่อหยุด');
+  setState('speak','กำลังพูด ('+(V.langOnly?'เบราว์เซอร์เลือกเสียงไทยเอง':'เสียง '+V.thaiVoice.name.replace(/\s*\(.*\)$/,''))+') — แตะปุ่มเพื่อหยุด');
   if(!V.thaiVoice.localService) V.keep=setInterval(function(){ if(speechSynthesis.speaking){speechSynthesis.pause();speechSynthesis.resume();} },9000);
   (function next(){
     if(V.state!=='speak'){clearInterval(V.keep);return;}
     if(i>=parts.length){clearInterval(V.keep);setState('idle');if(after)after();else if(V.cont)setTimeout(listen,400);return;}
     var voice=V.thaiVoice||thaiVoice();
     var u=new SpeechSynthesisUtterance(parts[i++]);
-    if(voice) u.voice=voice;
+    if(voice&&!V.langOnly) u.voice=voice;       // โหมด "ให้เบราว์เซอร์เลือกเสียงไทยเอง" ไม่ระบุชื่อเสียง
     u.lang='th-TH';                            // บังคับภาษาไทยทุกช่วง แม้วัตถุเสียงถูกรีเฟรช
     u.rate=V.rate; V.utts.push(u);
     u.onend=next; u.onerror=function(ev){clearInterval(V.keep); if(ev&&ev.error!=='interrupted'&&ev.error!=='canceled') setState('idle','เสียงอ่านสะดุด ('+ev.error+') — กด "ฟังอีกครั้ง" หรือเปลี่ยนเสียงอ่าน'); else setState('idle');};
     speechSynthesis.speak(u);
   })();
 }
-function stopSpeak(){V.sayId=(V.sayId||0)+1;clearInterval(V.keep);if('speechSynthesis' in window)speechSynthesis.cancel(); if(V.state==='speak')setState('idle');}
+
+/* ---------- เสียง Gemini (สร้างที่เซิร์ฟเวอร์) — เล่นผ่าน <audio> ไม่ขึ้นกับเสียงในเครื่อง ---------- */
+var SILENT_WAV='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+function audioEl(){ if(!V.audio){V.audio=new Audio();V.audio.preload='auto';} return V.audio; }
+/* iPhone ต้องเริ่มเล่นเสียงจากการแตะครั้งแรก — ปลดล็อกด้วยเสียงเงียบ แล้วใช้ตัวเล่นเดิมต่อ */
+document.addEventListener('click',function unlock(){try{var a=audioEl();a.src=SILENT_WAV;var p=a.play();if(p&&p.catch)p.catch(function(){});}catch(e){} document.removeEventListener('click',unlock,true);},true);
+function pcmToWav(b64,rate){
+  var bin=atob(b64), n=bin.length, buf=new ArrayBuffer(44+n), dv=new DataView(buf), i;
+  function s(o,t){for(var k=0;k<t.length;k++)dv.setUint8(o+k,t.charCodeAt(k));}
+  s(0,'RIFF');dv.setUint32(4,36+n,true);s(8,'WAVE');s(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,rate,true);dv.setUint32(28,rate*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);s(36,'data');dv.setUint32(40,n,true);
+  for(i=0;i<n;i++)dv.setUint8(44+i,bin.charCodeAt(i));
+  return new Blob([buf],{type:'audio/wav'});
+}
+function b64ToBlob(b64,mime){var bin=atob(b64),a=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime});}
+function sayGemini(text,after){
+  var myId=V.sayId=(V.sayId||0)+1;
+  V.lastSay=text; setState('speak','กำลังสร้างเสียง Gemini… แตะปุ่มเพื่อยกเลิก');
+  api('apiTts',[text],function(r){
+    if(V.sayId!==myId||V.state!=='speak') return;
+    var mime=String(r.mime||''), blob;
+    if(/wav/i.test(mime)) blob=b64ToBlob(r.b64,'audio/wav');
+    else if(/l16|pcm/i.test(mime)){var m=mime.match(/rate=(\d+)/);blob=pcmToWav(r.b64,m?+m[1]:24000);}
+    else blob=b64ToBlob(r.b64,mime||'audio/mpeg');
+    var a=audioEl(); if(V.audioUrl) URL.revokeObjectURL(V.audioUrl);
+    V.audioUrl=URL.createObjectURL(blob); a.src=V.audioUrl; a.playbackRate=V.rate||1;
+    a.onended=function(){if(V.sayId!==myId)return;setState('idle');if(after)after();else if(V.cont)setTimeout(listen,400);};
+    a.onerror=function(){if(V.sayId!==myId)return;setState('idle','เล่นเสียง Gemini ไม่ได้ — ใช้เสียงในเครื่องแทน');sayDevice(text,after);};
+    setState('speak','กำลังพูด (เสียง Gemini) — แตะปุ่มเพื่อหยุด');
+    var p=a.play(); if(p&&p.catch)p.catch(function(){ if(V.sayId!==myId)return; setState('idle','เบราว์เซอร์บล็อกการเล่นเสียง — แตะ "ฟังอีกครั้ง"'); });
+  },function(err){
+    if(V.sayId!==myId) return;
+    V.ttsNote=err; sayDevice(text,after);       // โควตาหมด/ผิดพลาด → ใช้เสียงในเครื่องแทนทันที
+    setTimeout(function(){ if(V.state==='speak'){var t=document.getElementById('vstate'); if(t) t.textContent+=' · เสียง Gemini ใช้ไม่ได้: '+err;} },50);
+  });
+}
+function say(text,after){
+  if(V.engine==='gemini'&&(GAS_MODE||AUTH.token)) sayGemini(text,after); else sayDevice(text,after);
+}
+function stopSpeak(){V.sayId=(V.sayId||0)+1;clearInterval(V.keep);if(V.audio){try{V.audio.pause();}catch(e){}}if('speechSynthesis' in window)speechSynthesis.cancel(); if(V.state==='speak')setState('idle');}
 function stopAll(){stopSpeak(); if(V.rec){V.state='idle';V.rec.abort();} clearTimeout(V.countdown); var c=document.getElementById('confirm'); if(c){c.hidden=true;c.innerHTML='';} setState('idle');}
 function orbTap(){
   if(V.state==='listen'){V.rec&&V.rec.stop();return;}
@@ -774,7 +827,7 @@ function refreshInit(){api('apiInit',[],function(r){applyInit(r);if(ST.screen===
 function applyInit(r){
   APP.ready=true; APP.user=r.user; APP.settings=r.settings||APP.settings; APP.cats=r.categories||[]; APP.feed=r.feed||[]; APP.queue=r.queue||[]; APP.counts=r.counts||{};
   V.rate=(r.user&&r.user.rate)||APP.settings.ttsRate||1;
-  if(r.user&&r.user.voice){V.voiceName=r.user.voice; var v=thaiVoice(); if(v) V.thaiVoice=v;}   /* ค่าที่เคยเลือกไว้ (เก็บในชีต) ตามไปทุกเครื่อง */
+  if(r.user&&r.user.voice) applyVoicePref(r.user.voice);   /* ค่าที่เคยเลือกไว้ (เก็บในชีต) ตามไปทุกเครื่อง */
   updateBadge(); updateVoiceBtn();
   var rb=document.getElementById('rateBtn'); if(rb) rb.textContent='ความเร็วเสียง: '+rateName();
 }
@@ -784,6 +837,8 @@ document.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d
 document.addEventListener('click',function(e){
   var t=e.target.closest('button'); if(!t) return;
   try{
+    if(t.dataset.engine){V.engine=t.dataset.engine; if(V.engine==='gemini') V.langOnly=false; storeVoicePref(); updateVoiceBtn(); renderVoicePanel(); return;}
+    if(t.dataset.engineTest){say('สวัสดีครับ ทดสอบเสียงอ่านภาษาไทย ตามข้อ 182 ต้องแจ้งภายใน 15 วัน นับถัดจากวันที่เหตุสิ้นสุด');return;}
     if(t.dataset.vtest!==undefined){useVoice(+t.dataset.vtest,true);return;}
     if(t.dataset.vuse!==undefined){useVoice(+t.dataset.vuse,false);return;}
     if(t.dataset.logout){logout();return;}
