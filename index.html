@@ -191,6 +191,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:14px;font-weight:60
 .clause{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:4px;font-size:15px}
 .ver+.ver{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px}
 .ctext{white-space:pre-wrap;margin-top:4px}
+.qsum{margin:8px 0 4px;line-height:1.6}
 .btn.icon{min-width:40px;padding:4px 8px}
 .btn.icon[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
 .doc-row a{color:var(--accent)}
@@ -241,7 +242,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
  * ║  (ถ้าเปิดผ่านเว็บแอป Apps Script โดยตรง ค่านี้ไม่ถูกใช้)                   ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  */
-var API_URL = 'https://script.google.com/macros/s/AKfycbzV1iysQZSRuxHc_mqaIT5FlOB40q1yIsc4v-mw1TmITu0s7BVwk9VCpFwv4IzMie60/exec';
+var API_URL = 'PASTE_WEB_APP_EXEC_URL_HERE';
 /* ═══════════════════════════ จบส่วน CONFIG ═══════════════════════════ */
 
 /* โหมด: เปิดผ่านเว็บแอป Apps Script (มี google.script.run) หรือหน้าเว็บภายนอกที่เรียก doPost */
@@ -613,9 +614,14 @@ S.feed=function(){
 };
 function queueCard(q){
   var canAct=q.status==='รอยืนยัน'&&APP.user&&(APP.user.role==='admin'||APP.user.role==='reviewer');
-  return '<article class="item" id="card-'+esc(q.qid)+'"><div class="row" style="gap:6px"><span class="tag t-cat">'+esc(catName(q.cat))+'</span><span class="tag t-amend">'+esc(q.status)+'</span></div>'+
+  var lv=(q.note||'').match(/Gemini ประเมิน: เกี่ยวข้อง(สูง|กลาง)/);
+  return '<article class="item" id="card-'+esc(q.qid)+'"><div class="row" style="gap:6px"><span class="tag t-cat">'+esc(catName(q.cat))+'</span><span class="tag t-amend">'+esc(q.status)+'</span>'+
+   (lv?'<span class="tag t-cat">เกี่ยวข้อง'+esc(lv[1])+'</span>':'')+'</div>'+
    '<h4>'+esc(q.title)+'</h4><div class="meta">'+esc(q.qid)+' · '+esc(q.source)+' · พบเมื่อ '+esc(thDate(q.found))+(q.note?' · '+esc(q.note):'')+'</div>'+
+   (q.summary&&q.summary!==q.title?'<p class="qsum">'+(/Gemini ประเมิน/.test(q.note)&&!q.docId?'<b>สรุปโดย Gemini (ยังไม่ได้ตรวจ):</b> ':'')+esc(q.summary)+'</p>':'')+
+   (q.impact?'<div class="meta"><b>กระทบงาน:</b> '+esc(q.impact)+'</div>':'')+
    (q.relation?'<div class="chain">ความสัมพันธ์ที่เสนอ: '+esc(q.relation)+'</div>':'')+
+   (/^https:\/\//.test(q.url||'')?'<div class="meta"><a href="'+esc(q.url)+'" target="_blank" rel="noopener">เปิดต้นฉบับ (PDF)</a></div>':'')+
    (canAct?'<div class="row" style="margin-top:8px"><button type="button" class="btn sm primary" data-accept="'+esc(q.qid)+'"><span>ยืนยันว่าเกี่ยวข้อง</span></button><button type="button" class="btn sm" data-reject="'+esc(q.qid)+'"><span>ไม่เกี่ยวข้อง</span></button></div>':'')+
    (q.status==='รอนำเข้า'?'<div class="chain">ยืนยันแล้ว — รอนำข้อความเข้าคลัง (ตัดเป็นรายข้อ) ก่อนผู้ช่วยจะอ้างได้</div>':'')+
    '</article>';
